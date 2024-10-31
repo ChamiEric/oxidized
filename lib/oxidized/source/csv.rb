@@ -7,15 +7,20 @@ module Oxidized
 
     def setup
       if @cfg.empty?
-        Oxidized.asetus.user.source.csv.file      = File.join(Config::Root, 'router.db')
+        Oxidized.asetus.user.source.csv.file      = File.join(Config::ROOT, 'router.db')
         Oxidized.asetus.user.source.csv.delimiter = /:/
         Oxidized.asetus.user.source.csv.map.name  = 0
         Oxidized.asetus.user.source.csv.map.model = 1
         Oxidized.asetus.user.source.csv.gpg       = false
         Oxidized.asetus.save :user
-        raise NoConfig, 'no source csv config, edit ~/.config/oxidized/config'
+        raise NoConfig, "no source csv config, edit #{Oxidized::Config.configfile}"
       end
       require 'gpgme' if @cfg.gpg?
+
+      # map.name is mandatory
+      return if @cfg.map.has_key?('name')
+
+      raise InvalidConfig, "map/name is a mandatory source attribute, edit #{Oxidized::Config.configfile}"
     end
 
     def load(_node_want = nil)
@@ -32,6 +37,7 @@ module Oxidized
           keys[key.to_sym] = node_var_interpolate data[position]
         end
         keys[:model] = map_model keys[:model] if keys.has_key? :model
+        keys[:group] = map_group keys[:group] if keys.has_key? :group
 
         # map node specific vars
         vars = {}
@@ -43,18 +49,6 @@ module Oxidized
         nodes << keys
       end
       nodes
-    end
-
-    private
-
-    def open_file
-      file = File.expand_path(@cfg.file)
-      if @cfg.gpg?
-        crypto = GPGME::Crypto.new password: @cfg.gpg_password
-        crypto.decrypt(File.open(file)).to_s
-      else
-        File.open(file)
-      end
     end
   end
 end

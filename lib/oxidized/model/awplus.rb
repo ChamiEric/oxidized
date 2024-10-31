@@ -1,4 +1,6 @@
 class AWPlus < Oxidized::Model
+  using Refinements
+
   # Allied Telesis Alliedware Plus Model#
   # https://www.alliedtelesis.com/products/software/AlliedWare-Plus
 
@@ -13,8 +15,8 @@ class AWPlus < Oxidized::Model
 
   # Removes gibberish pager output e.g. VT100 escape codes
   cmd :all do |cfg|
-    cfg.gsub! /\e\[K/, ''         # example how to handle pager - cleareol EL0
-    cfg.gsub! /\e\[7m\e\[m/, ''   # example how to handle pager - Reverse SGR7
+    cfg.gsub! "\e[K", '' # example how to handle pager - cleareol EL0
+    cfg.gsub! "\e[7m\e[m", '' # example how to handle pager - Reverse SGR7
     cfg.delete! "\r" # Filters rogue ^M - see issue #415
     cfg.cut_both
   end
@@ -51,7 +53,7 @@ class AWPlus < Oxidized::Model
                 line.match(/Current software\s*:.*/) ||
                 line.match(/Software version\s*:.*/) ||
                 line.match(/Build date\s*:.*/)
-            } .join
+            }.join
   end
 
   # Actually get the devices running config#

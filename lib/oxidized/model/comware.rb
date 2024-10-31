@@ -1,5 +1,6 @@
 class Comware < Oxidized::Model
   # HP (A-series)/H3C/3Com Comware
+  using Refinements
 
   # sometimes the prompt might have a leading nul or trailing ASCII Bell (^G)
   prompt /^\0*(<[\w.-]+>).?$/
@@ -26,11 +27,20 @@ class Comware < Oxidized::Model
   end
 
   cfg :telnet do
-    username /^(Username|login):/
+    username /^(Username|[Ll]ogin):/
     password /^Password:/
   end
 
   cfg :telnet, :ssh do
+    # handle enable passwords
+    post_login do
+      if vars(:enable) == true
+        cmd "super"
+      elsif vars(:enable)
+        cmd "super", /^\s?[pP]assword:/
+        cmd vars(:enable)
+      end
+    end
     # enable command-line mode on SMB comware switches (HP V1910, V1920)
     # autodetection is hard, because the 'summary' command is paged, and
     # the pager cannot be disabled before _cmdline-mode on.
@@ -41,9 +51,15 @@ class Comware < Oxidized::Model
         cmd 'y', /(#{@node.prompt}|input password)/
         cmd vars(:comware_cmdline)
 
-        # HP V1950
+        # HP V1950 r2432P06
         cmd 'xtd-cli-mode on', /(#{@node.prompt}|Continue)/
         cmd 'y', /(#{@node.prompt}|input password)/
+        cmd vars(:comware_cmdline)
+
+        # HP V1950 OS r3208 (v7.1)
+        # HPE Office Connect 1950
+        cmd 'xtd-cli-mode', /(#{@node.prompt}|Continue|Switch)/
+        cmd 'y', /(#{@node.prompt}|input password|Password:)/
         cmd vars(:comware_cmdline)
       end
     end

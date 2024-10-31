@@ -5,15 +5,16 @@ module Oxidized
     attr_reader :commitref
 
     def initialize
+      super
       @cfg = Oxidized.config.output.file
     end
 
     def setup
       return unless @cfg.empty?
 
-      Oxidized.asetus.user.output.file.directory = File.join(Config::Root, 'configs')
+      Oxidized.asetus.user.output.file.directory = File.join(Config::ROOT, 'configs')
       Oxidized.asetus.save :user
-      raise NoConfig, 'no output file config, edit ~/.config/oxidized/config'
+      raise NoConfig, "no output file config, edit #{Oxidized::Config.configfile}"
     end
 
     def store(node, outputs, opt = {})
@@ -21,7 +22,7 @@ module Oxidized
       file = File.join File.dirname(file), opt[:group] if opt[:group]
       FileUtils.mkdir_p file
       file = File.join file, node
-      File.open(file, 'w') { |fh| fh.write outputs.to_cfg }
+      File.write(file, outputs.to_cfg)
       @commitref = file
     end
 

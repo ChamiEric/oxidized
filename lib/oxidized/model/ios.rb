@@ -1,4 +1,6 @@
 class IOS < Oxidized::Model
+  using Refinements
+
   prompt /^([\w.@()-]+[#>]\s?)$/
   comment  '! '
 
@@ -25,23 +27,23 @@ class IOS < Oxidized::Model
 
   cmd :secret do |cfg|
     cfg.gsub! /^(snmp-server community).*/, '\\1 <configuration removed>'
-    cfg.gsub! /^(snmp-server host \S+( vrf \S+)?( informs?)?( version (1|2c|3 (noauth|auth|priv)))?)\s+\S+((\s+\S*)*)\s*/, '\\1 <secret hidden> \\7'
+    cfg.gsub! /^(snmp-server host \S+( vrf \S+)?( informs?)?( version (1|2c))?) +\S+( .*)?$*/, '\\1 <secret hidden>\\6'
     cfg.gsub! /^(username .+ (password|secret) \d) .+/, '\\1 <secret hidden>'
     cfg.gsub! /^(enable (password|secret)( level \d+)? \d) .+/, '\\1 <secret hidden>'
-    cfg.gsub! /^(\s+(?:password|secret)) (?:\d )?\S+/, '\\1 <secret hidden>'
+    cfg.gsub! /^( +(?:password|secret)) (?:\d )?\S+/, '\\1 <secret hidden>'
     cfg.gsub! /^(.*wpa-psk ascii \d) (\S+)/, '\\1 <secret hidden>'
     cfg.gsub! /^(.*key 7) (\d.+)/, '\\1 <secret hidden>'
     cfg.gsub! /^(tacacs-server (.+ )?key) .+/, '\\1 <secret hidden>'
     cfg.gsub! /^(crypto isakmp key) (\S+) (.*)/, '\\1 <secret hidden> \\3'
-    cfg.gsub! /^(\s+ip ospf message-digest-key \d+ md5) .+/, '\\1 <secret hidden>'
-    cfg.gsub! /^(\s+ip ospf authentication-key) .+/, '\\1 <secret hidden>'
-    cfg.gsub! /^(\s+neighbor \S+ password) .+/, '\\1 <secret hidden>'
-    cfg.gsub! /^(\s+vrrp \d+ authentication text) .+/, '\\1 <secret hidden>'
-    cfg.gsub! /^(\s+standby \d+ authentication) .{1,8}$/, '\\1 <secret hidden>'
-    cfg.gsub! /^(\s+standby \d+ authentication md5 key-string) .+?( timeout \d+)?$/, '\\1 <secret hidden> \\2'
-    cfg.gsub! /^(\s+key-string) .+/, '\\1 <secret hidden>'
-    cfg.gsub! /^((tacacs|radius) server [^\n]+\n(\s+[^\n]+\n)*\s+key) [^\n]+$/m, '\1 <secret hidden>'
-    cfg.gsub! /^(\s+ppp (chap|pap) password \d) .+/, '\\1 <secret hidden>'
+    cfg.gsub! /^( +ip ospf message-digest-key \d+ md5) .+/, '\\1 <secret hidden>'
+    cfg.gsub! /^( +ip ospf authentication-key) .+/, '\\1 <secret hidden>'
+    cfg.gsub! /^( +neighbor \S+ password) .+/, '\\1 <secret hidden>'
+    cfg.gsub! /^( +vrrp \d+ authentication text) .+/, '\\1 <secret hidden>'
+    cfg.gsub! /^( +standby \d+ authentication) .{1,8}$/, '\\1 <secret hidden>'
+    cfg.gsub! /^( +standby \d+ authentication md5 key-string) .+?( timeout \d+)?$/, '\\1 <secret hidden> \\2'
+    cfg.gsub! /^( +key-string) .+/, '\\1 <secret hidden>'
+    cfg.gsub! /^((tacacs|radius) server [^\n]+\n( +[^\n]+\n)* +key) [^\n]+$/m, '\1 <secret hidden>'
+    cfg.gsub! /^( +ppp (chap|pap) password \d) .+/, '\\1 <secret hidden>'
     cfg
   end
 
@@ -83,7 +85,7 @@ class IOS < Oxidized::Model
         comments << "Processor ID: #{Regexp.last_match(1)}" if cfg.lines[i + 1] =~ /processor board id (\S+)/i
         if cfg.lines[i + 2] =~ /(cpu at |processor: |#{cpu} processor,)/i
           # change implementation to impl and prepend comma
-          cpuxtra = cfg.lines[i + 2].gsub(/implementation/, 'impl').gsub(/^/, ', ').chomp
+          cpuxtra = cfg.lines[i + 2].gsub("implementation", 'impl').gsub(/^/, ', ').chomp
         end
         comments << "CPU:#{slave} #{cpu}#{cpuxtra}#{slaveslot}"
       end
@@ -105,16 +107,19 @@ class IOS < Oxidized::Model
     comment cfg
   end
 
-  cmd 'show running-config' do |cfg|
-    cfg = cfg.each_line.to_a[3..-1]
-    cfg = cfg.reject { |line| line.match /^ntp clock-period / }.join
-    cfg.gsub! /^Current configuration : [^\n]*\n/, ''
-    cfg.gsub! /^! (Last|No) configuration change (at|since).*\n/, ''
-    cfg.gsub! /^! NVRAM config last updated.*\n/, ''
-    cfg.gsub! /^ tunnel mpls traffic-eng bandwidth[^\n]*\n*(
-                  (?: [^\n]*\n*)*
-                  tunnel mpls traffic-eng auto-bw)/mx, '\1'
-    cfg
+  post do
+    cmd_line = 'show running-config'
+    cmd_line += ' view full' if vars(:ios_rbac)
+    cmd cmd_line do |cfg|
+      cfg = cfg.each_line.to_a[3..-1]
+      cfg = cfg.reject { |line| line.match /^ntp clock-period / }.join
+      cfg = cfg.each_line.reject { |line| line.match /^! (Last|No) configuration change (at|since).*/ unless line =~ /\d+\sby\s\S+$/ }.join
+      cfg.gsub! /^Current configuration : [^\n]*\n/, ''
+      cfg.gsub! /^ tunnel mpls traffic-eng bandwidth[^\n]*\n*(
+                    (?: [^\n]*\n*)*
+                    tunnel mpls traffic-eng auto-bw)/mx, '\1'
+      cfg
+    end
   end
 
   cfg :telnet do

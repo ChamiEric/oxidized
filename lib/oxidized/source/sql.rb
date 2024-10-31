@@ -7,15 +7,20 @@ module Oxidized
     end
 
     def setup
-      return unless @cfg.empty?
+      if @cfg.empty?
+        Oxidized.asetus.user.source.sql.adapter   = 'sqlite'
+        Oxidized.asetus.user.source.sql.database  = File.join(Config::ROOT, 'sqlite.db')
+        Oxidized.asetus.user.source.sql.table     = 'devices'
+        Oxidized.asetus.user.source.sql.map.name  = 'name'
+        Oxidized.asetus.user.source.sql.map.model = 'rancid'
+        Oxidized.asetus.save :user
+        raise NoConfig, "No source sql config, edit #{Oxidized::Config.configfile}"
+      end
 
-      Oxidized.asetus.user.source.sql.adapter   = 'sqlite'
-      Oxidized.asetus.user.source.sql.database  = File.join(Config::Root, 'sqlite.db')
-      Oxidized.asetus.user.source.sql.table     = 'devices'
-      Oxidized.asetus.user.source.sql.map.name  = 'name'
-      Oxidized.asetus.user.source.sql.map.model = 'rancid'
-      Oxidized.asetus.save :user
-      raise NoConfig, 'no source sql config, edit ~/.config/oxidized/config'
+      # map.name is mandatory
+      return if @cfg.map.has_key?('name')
+
+      raise InvalidConfig, "map/name is a mandatory source attribute, edit #{Oxidized::Config.configfile}"
     end
 
     def load(node_want = nil)
@@ -31,6 +36,7 @@ module Oxidized
         keys = {}
         @cfg.map.each { |key, sql_column| keys[key.to_sym] = node_var_interpolate node[sql_column.to_sym] }
         keys[:model] = map_model keys[:model] if keys.has_key? :model
+        keys[:group] = map_group keys[:group] if keys.has_key? :group
 
         # map node specific vars
         vars = {}
@@ -53,13 +59,22 @@ module Oxidized
     end
 
     def connect
-      Sequel.connect(adapter:  @cfg.adapter,
-                     host:     @cfg.host?,
-                     user:     @cfg.user?,
-                     password: @cfg.password?,
-                     database: @cfg.database)
-    rescue Sequel::AdapterNotFound => error
-      raise OxidizedError, "SQL adapter gem not installed: " + error.message
+      options = {
+        adapter:  @cfg.adapter,
+        host:     @cfg.host?,
+        user:     @cfg.user?,
+        password: @cfg.password?,
+        database: @cfg.database,
+        ssl_mode: @cfg.ssl_mode?
+      }
+      if @cfg.with_ssl?
+        options.merge!(sslca:   @cfg.ssl_ca?,
+                       sslcert: @cfg.ssl_cert?,
+                       sslkey:  @cfg.ssl_key?)
+      end
+      Sequel.connect(options)
+    rescue Sequel::AdapterNotFound => e
+      raise OxidizedError, "SQL adapter gem not installed: " + e.message
     end
   end
 end

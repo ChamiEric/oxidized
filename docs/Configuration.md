@@ -9,7 +9,7 @@ The following example will log an active ssh/telnet session `/home/oxidized/.con
 ```yaml
 log: /home/oxidized/.config/oxidized/log
 
-...
+# ...
 
 input:
   default: ssh, telnet
@@ -45,7 +45,7 @@ As a partial example from ios.rb:
 ```ruby
   cmd :secret do |cfg|
     cfg.gsub! /^(snmp-server community).*/, '\\1 <configuration removed>'
-    (...)
+    # ...
     cfg
   end
 ```
@@ -98,14 +98,14 @@ vars:
 Per-Node:
 
 ```yaml
-...
+# ...
 map:
   name: 0
   model: 1
 vars_map:
   enable: 2
   ssh_keys: 3
-...
+# ...
 ```
 
 If you are using a non-standard path, especially when copying the private key via a secured channel, make sure that the permissions are set correctly:
@@ -124,14 +124,14 @@ Finally, multiple private keys can be specified as an array of file paths, such 
 
 ## SSH Proxy Command
 
-Oxidized can `ssh` through a proxy as well. To do so we just need to set `ssh_proxy` variable with the proxy host information and optionally set the `ssh_proxy_port` with the SSH port if it is not listening no port 22.
+Oxidized can `ssh` through a proxy as well. To do so we just need to set `ssh_proxy` variable with the proxy host information and optionally set the `ssh_proxy_port` with the SSH port if it is not listening on port 22.
 
 This can be provided on a per-node basis by mapping the proper fields from your source.
 
 An example for a `csv` input source that maps the 4th field as the `ssh_proxy` value and the 5th field as `ssh_proxy_port`.
 
 ```yaml
-...
+# ...
 map:
   name: 0
   model: 1
@@ -139,7 +139,7 @@ vars_map:
   enable: 2
   ssh_proxy: 3
   ssh_proxy_port: 4
-...
+# ...
 ```
 
 ## SSH enabling legacy algorithms
@@ -149,7 +149,7 @@ When connecting to older firmware over SSH, it is sometimes necessary to enable 
 These settings can be provided on a per-node basis by mapping the ssh_kex, ssh_host_key, ssh_hmac and the ssh_encryption fields from you source.
 
 ```yaml
-...
+# ...
 map:
   name: 0
   model: 1
@@ -159,7 +159,7 @@ vars_map:
   ssh_host_key: 4
   ssh_hmac: 5
   ssh_encryption: 6
-...
+# ...
 ```
 
 ## FTP Passive Mode
@@ -184,7 +184,11 @@ model: junos
 interval: 3600 #interval in seconds
 log: ~/.config/oxidized/log
 debug: false
-threads: 30
+threads: 30 # maximum number of threads
+# use_max_threads:
+# false - the number of threads is selected automatically based on the interval option, but not more than the maximum
+# true - always use the maximum number of threads
+use_max_threads: false
 timeout: 20
 retries: 3
 prompt: !ruby/regexp /^([\w.@-]+[#>]\s?)$/
@@ -238,13 +242,55 @@ groups:
     password: ubnt
 ```
 
-and add group mapping
+Model specific variables/credentials within groups
 
 ```yaml
-map:
-  model: 0
-  name: 1
-  group: 2
+groups:
+  foo:
+    models:
+      arista:
+        username: admin
+        password: password
+        vars:
+          ssh_keys: "~/.ssh/id_rsa_foo_arista"
+      vyatta:
+        vars:
+          ssh_keys: "~/.ssh/id_rsa_foo_vyatta"
+  bar:
+    models:
+      routeros:
+        vars:
+          ssh_keys: "~/.ssh/id_rsa_bar_routeros"
+      vyatta:
+        username: admin
+        password: pass
+        vars:
+          ssh_keys: "~/.ssh/id_rsa_bar_vyatta"
+```
+
+For mapping multiple group values to a common name
+
+```yaml
+group_map:
+  alias1: groupA
+  alias2: groupA
+  alias3: groupB
+  alias4: groupB
+  aliasN: groupZ
+  # ...
+```
+
+add group mapping to a source
+
+```yaml
+source:
+  # ...
+  <source>:
+    # ...
+    map:
+      model: 0
+      name: 1
+      group: 2
 ```
 
 For model specific credentials
@@ -269,13 +315,33 @@ models:
     password: pass
 ```
 
+### Options (credentials, vars, etc.) precedence:
+From least to most important:
+- global options
+- model specific options
+- group specific options
+- model specific options in groups
+- options defined on single nodes
+
+More important options overwrite less important ones if they are set.
+
 ## RESTful API and Web Interface
 
 The RESTful API and Web Interface is enabled by configuring the `rest:` parameter in the config file.  This parameter can optionally contain a relative URI.
 
 ```yaml
+# Listen on http://[::1]:8888/
+rest: "[::1]:8888"
+```
+
+```yaml
 # Listen on http://127.0.0.1:8888/
 rest: 127.0.0.1:8888
+```
+
+```yaml
+# Listen on http://[2001:db8:0:face:b001:0:dead:beaf]:8888/oxidized/
+rest: "[2001:db8:0:face:b001:0:dead:beaf]:8888"
 ```
 
 ```yaml

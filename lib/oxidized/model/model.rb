@@ -3,10 +3,13 @@ require_relative 'outputs'
 
 module Oxidized
   class Model
+    using Refinements
+
     include Oxidized::Config::Vars
 
     class << self
       def inherited(klass)
+        super
         if klass.superclass == Oxidized::Model
           klass.instance_variable_set '@cmd',     (Hash.new { |h, k| h[k] = [] })
           klass.instance_variable_set '@cfg',     (Hash.new { |h, k| h[k] = [] })
@@ -16,7 +19,9 @@ module Oxidized
           klass.instance_variable_set '@prompt',  nil
         else # we're subclassing some existing model, take its variables
           instance_variables.each do |var|
-            klass.instance_variable_set var, instance_variable_get(var)
+            iv = instance_variable_get(var)
+            klass.instance_variable_set var, iv.dup
+            @cmd[:cmd] = iv[:cmd].dup if var.to_s == "@cmd"
           end
         end
       end
@@ -46,7 +51,7 @@ module Oxidized
       end
 
       def cmd(cmd_arg = nil, **args, &block)
-        if cmd_arg.class == Symbol
+        if cmd_arg.instance_of?(Symbol)
           process_args_block(@cmd[cmd_arg], args, block)
         else
           process_args_block(@cmd[:cmd], args, [cmd_arg, block])
@@ -97,7 +102,12 @@ module Oxidized
 
       def process_args_block(target, args, block)
         if args[:clear]
-          target.replace([block])
+          if block.instance_of?(Array)
+            target.reject! { |k, _| k == block[0] }
+            target.push(block)
+          else
+            target.replace([block])
+          end
         else
           method = args[:prepend] ? :unshift : :push
           target.send(method, block)
@@ -114,14 +124,14 @@ module Oxidized
 
       out = out.b unless Oxidized.config.input.utf8_encoded?
       self.class.cmds[:all].each do |all_block|
-        out = instance_exec Oxidized::String.new(out), string, &all_block
+        out = instance_exec out, string, &all_block
       end
       if vars :remove_secret
         self.class.cmds[:secret].each do |all_block|
-          out = instance_exec Oxidized::String.new(out), string, &all_block
+          out = instance_exec out, string, &all_block
         end
       end
-      out = instance_exec Oxidized::String.new(out), &block if block
+      out = instance_exec out, &block if block
       process_cmd_output out, string
     end
 
@@ -133,8 +143,8 @@ module Oxidized
       @input.send data
     end
 
-    def expect(regex, &block)
-      self.class.expect regex, &block
+    def expect(...)
+      self.class.expect(...)
     end
 
     def cfg
@@ -181,6 +191,24 @@ module Oxidized
       data
     end
 
+    def xmlcomment(str)
+      # XML Comments start with <!-- and end with -->
+      #
+      # Because it's illegal for the first or last characters of a comment
+      # to be a -, i.e. <!--- or ---> are illegal, and also to improve
+      # readability, we add extra spaces after and before the beginning
+      # and end of comment markers.
+      #
+      # Also, XML Comments must not contain --. So we put a space between
+      # any double hyphens, by replacing any - that is followed by another -
+      # with '- '
+      data = ''
+      str.each_line do |_line|
+        data << '<!-- ' << str.gsub(/-(?=-)/, '- ').chomp << " -->\n"
+      end
+      data
+    end
+
     def screenscrape
       @input.class.to_s.match(/Telnet/) || vars(:ssh_no_exec)
     end
@@ -188,9 +216,8 @@ module Oxidized
     private
 
     def process_cmd_output(output, name)
-      output = Oxidized::String.new(output) if output.is_a?(::String)
-      output = Oxidized::String.new('') unless output.instance_of?(Oxidized::String)
-      output.set_cmd(name)
+      output = String.new('') unless output.instance_of?(String)
+      output.process_cmd(name)
       output
     end
   end

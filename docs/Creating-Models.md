@@ -6,27 +6,42 @@ A user may wish to extend an existing model to collect the output of additional 
 
 This methodology allows local site changes to be preserved during Oxidized version updates / gem updates. It also enables convenient local development of new models.
 
+## Index
+- [Creating a new model](#creating-a-new-model)
+- [Extending an existing model with a new command](#extending-an-existing-model-with-a-new-command)
+- [Create unit tests for the model](#create-unit-tests-for-the-model)
+- [Advanced features](#advanced-features)
+- [Monkey-patching blocks in existing models](#monkey-patching-blocks-in-existing-models)
+- [Help](#help)
+
 ## Creating a new model
 
 An Oxidized model, at minimum, requires just three elements:
 
-* A model file, this file should be placed in the ~/.config/oxidized directory and named after the target OS type.
+* A model file, this file should be placed in the ~/.config/oxidized/model directory and named after the target OS type.
 * A class defined within this file with the same name as the file itself that inherits from `Oxidized::Model`, the base model class.
 * At least one command that will be executed and the output of which will be collected by Oxidized.
 
-A bare-bone example for a fictional model running the OS type `rootware` could be introduced by creating the file `~/.config/oxidized/rootware.rb`, with the following content:
+A bare-bone example for a fictional model running the OS type `rootware` could be introduced by creating the file `~/.config/oxidized/model/rootware.rb`, with the following content:
 
 ```ruby
 class RootWare < Oxidized::Model
+  using Refinements
   
   cmd 'show complete-config'
+
+  cfg :ssh do
+    pre_logout 'exit'
+  end
+end
 ```
 
 This model, as-is will:
 
-* Log into the device and expect the default prompt.
+* Log into the device with ssh and expect the default prompt.
 * Upon matching it, execute the command `show complete-config`
 * Collect the output.
+* Logout with the command `exit`
 
 It is often useful to, at minimum, define the following additional elements for any newly introduced module:
 
@@ -50,11 +65,11 @@ require 'oxidized/model/junos.rb'
 
 
 class JunOS
+  using Refinements
 
-
-    cmd 'show interfaces diagnostics optics' do |cfg|
-        comment cfg
-    end
+  cmd 'show interfaces diagnostics optics' do |cfg|
+    comment cfg
+  end
 
 
 end
@@ -70,6 +85,33 @@ Intuitively, it is also possible to:
 * Create a named variation of an existing model, by creating a file with a new name (such as `~/.config/oxidized/model/junos-extra.rb`), Then `require` the original model and extend its base class as in the above example. The named variation can then be specified as an OS type for specific devices that can benefit from the extra functionality. This allows for preservation of the base functionality for the default model types.
 * Create a completely new model, with a new name, for a new operating system type.
 * Testing/validation of an updated model from the [Oxidized GitHub repo models](https://github.com/ytti/oxidized/tree/master/lib/oxidized/model) by placing an updated model in the proper location without disrupting the gem-supplied model files.
+
+## Create unit tests for the model
+> :warning: model unit tests are still a work in progress and need some polishing.
+
+If you want the model to be integrated into oxidized, you can
+[submit a pull request on github](https://github.com/ytti/oxidized/pulls).
+This is a greatly appreciated submission, as there are probably other users
+using the same network device as you are.
+
+A good (and optional) practice for submissions is to provide a
+[unit test for your model](/spec/model). This reduces the risk that further
+developments don't break it, and facilitates debugging issues without having
+access to a physical network device for the model.
+
+In order to simulate the device in the unit test, you need a
+[YAML simulation file](/examples/device-simulation/), have a look at the
+link for an explanation on how to create one.
+
+Creating the unit test itself is explained in
+[README.md in the model unit test directory](/spec/model/README.md).
+
+Remember - producing a YAML simulation file and/or writing a unit test is
+optional.
+The most value comes from the YAML simulation file. The unit
+test can be written by someone else, but you need access to the device for the
+YAML simulation file. If you encounter problems, open an issue or ask for help
+in your pull request.
 
 ## Advanced features
 
@@ -92,19 +134,17 @@ require 'oxidized/model/junos.rb'
 
 
 class JunOS
+  using Refinements
 
+  cmd 'show interface diagnostic optics' do |cfg|
+    comment cfg
+  end
 
-    cmd 'show interface diagnostic optics' do |cfg|
-        comment cfg
-    end
-
-    cmd 'show configuration | display set' do |cfg|
-        cfg.type = "junos-set"
-        cfg.name = "set"
-        cfg
-    end
-
-
+  cmd 'show configuration | display set' do |cfg|
+    cfg.type = "junos-set"
+    cfg.name = "set"
+    cfg
+  end
 end
 ```
 
@@ -125,19 +165,19 @@ Examples:
 
 ```ruby
 cmd :secret, clear: true do
-  ... "(new code for secret removal which replaces the existing :secret definition in the model)" ...
+  # ... "(new code for secret removal which replaces the existing :secret definition in the model)" ...
 end
 ```
 
 ```ruby
 cmd 'show version', clear: true do |cfg|
-  ... "(new code for parsing 'show version', replaces the existing definition in the model)" ...
+  # ... "(new code for parsing 'show version', replaces the existing definition in the model)" ...
 end
 ```
 
 ```ruby
 cmd :ssh, prepend: true do
-  ... "(code that should run first, before any code in the existing :ssh definition in the model)" ...
+  # ... "(code that should run first, before any code in the existing :ssh definition in the model)" ...
 end
 ```
 

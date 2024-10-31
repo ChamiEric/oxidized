@@ -30,11 +30,9 @@ class Exec < Oxidized::Hook
     env = make_env ctx
     log "Execute: #{@cmd.inspect}", :debug
     th = Thread.new do
-      begin
-        run_cmd! env
-      rescue StandardError => e
-        raise e unless @async
-      end
+      run_cmd! env
+    rescue StandardError => e
+      raise e unless @async
     end
     th.join unless @async
   end
@@ -70,7 +68,9 @@ class Exec < Oxidized::Hook
         "OX_NODE_GROUP"     => ctx.node.group.to_s,
         "OX_NODE_MODEL"     => ctx.node.model.class.name,
         "OX_REPO_COMMITREF" => ctx.commitref.to_s,
-        "OX_REPO_NAME"      => ctx.node.repo.to_s
+        "OX_REPO_NAME"      => ctx.node.repo.to_s,
+        "OX_ERR_TYPE"       => ctx.node.err_type.to_s,
+        "OX_ERR_REASON"     => ctx.node.err_reason.to_s
       )
     end
     if ctx.job

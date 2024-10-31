@@ -1,4 +1,6 @@
 class Enterasys800 < Oxidized::Model
+  using Refinements
+
   # Enterasys 800 models #
   # Tested with 08H20G4-24 Fast Ethernet Switch Firmware: Build 01.01.01.0017
   comment '# '
@@ -21,7 +23,7 @@ class Enterasys800 < Oxidized::Model
   cmd :all do |cfg|
     cfg = cfg.cut_both
     cfg = cfg.gsub /^[\r\n]|^\s\s\s/, ''
-    cfg = cfg.gsub /Command: show config effective/, ''
+    cfg = cfg.gsub "Command: show config effective", ''
     cfg
   end
 

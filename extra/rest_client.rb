@@ -6,7 +6,7 @@ module Oxidized
     require 'asetus'
 
     class Config
-      Root = Root = ENV['OXIDIZED_HOME'] || File.join(ENV['HOME'], '.config', 'oxidized')
+      Root = Root = ENV['OXIDIZED_HOME'] || File.join(Dir.home, '.config', 'oxidized')
     end
 
     CFGS = Asetus.new name: 'oxidized', load: false, key_to_s: true
@@ -14,8 +14,8 @@ module Oxidized
 
     begin
       CFGS.load
-    rescue StandardError => error
-      raise InvalidConfig, "Error loading config: #{error.message}"
+    rescue StandardError => e
+      raise InvalidConfig, "Error loading config: #{e.message}"
     end
 
     restcfg = CFGS.cfg.rest

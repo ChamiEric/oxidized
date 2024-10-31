@@ -1,14 +1,28 @@
 module Oxidized
-  class HTTP < Source
+  require "oxidized/source/jsonfile"
+  class HTTP < JSONFile
     def initialize
-      @cfg = Oxidized.config.source.http
       super
+      @cfg = Oxidized.config.source.http
     end
 
     def setup
-      return unless @cfg.url.empty?
+      Oxidized.setup_logger
+      if @cfg.empty?
+        Oxidized.asetus.user.source.http.url       = 'https://url/api'
+        Oxidized.asetus.user.source.http.map.name  = 'name'
+        Oxidized.asetus.user.source.http.map.model = 'model'
+        Oxidized.asetus.save :user
 
-      raise NoConfig, 'no source http url config, edit ~/.config/oxidized/config'
+        raise NoConfig, "No source http config, edit #{Oxidized::Config.configfile}"
+      end
+
+      # check for mandatory attributes
+      if !@cfg.has_key?('url')
+        raise InvalidConfig, "url is a mandatory http source attribute, edit #{Oxidized::Config.configfile}"
+      elsif !@cfg.map.has_key?('name')
+        raise InvalidConfig, "map/name is a mandatory source attribute, edit #{Oxidized::Config.configfile}"
+      end
     end
 
     require "net/http"
@@ -17,49 +31,40 @@ module Oxidized
     require "json"
 
     def load(node_want = nil)
-      nodes = []
-      data = JSON.parse(read_http(node_want))
-      data = string_navigate(data, @cfg.hosts_location) if @cfg.hosts_location?
-      data.each do |node|
-        next if node.empty?
+      uri = URI.parse(@cfg.url)
+      data = JSON.parse(read_http(uri, node_want))
+      node_data = data
+      node_data = string_navigate_object(data, @cfg.hosts_location) if @cfg.hosts_location?
+      node_data = pagination(data, node_want) if @cfg.pagination?
 
-        # map node parameters
-        keys = {}
-        @cfg.map.each do |key, want_position|
-          keys[key.to_sym] = node_var_interpolate string_navigate(node, want_position)
-        end
-        keys[:model] = map_model keys[:model] if keys.has_key? :model
-
-        # map node specific vars
-        vars = {}
-        @cfg.vars_map.each do |key, want_position|
-          vars[key.to_sym] = node_var_interpolate string_navigate(node, want_position)
-        end
-        keys[:vars] = vars unless vars.empty?
-
-        nodes << keys
-      end
-      nodes
+      transform_json(node_data)
     end
 
     private
 
-    def string_navigate(object, wants)
-      wants = wants.split(".").map do |want|
-        head, match, _tail = want.partition(/\[\d+\]/)
-        match.empty? ? head : [head, match[1..-2].to_i]
+    def pagination(data, node_want)
+      node_data = []
+      raise Oxidized::OxidizedError, "if using pagination, 'pagination_key_name' setting must be set" unless @cfg.pagination_key_name?
+
+      next_key = @cfg.pagination_key_name
+      loop do
+        node_data += string_navigate_object(data, @cfg.hosts_location) if @cfg.hosts_location?
+        break if data[next_key].nil?
+
+        new_uri = URI.parse(data[next_key]) if data.has_key?(next_key)
+        data = JSON.parse(read_http(new_uri, node_want))
+        node_data += string_navigate_object(data, @cfg.hosts_location) if @cfg.hosts_location?
       end
-      wants.flatten.each do |want|
-        object = object[want] if object.respond_to? :each
-      end
-      object
+      node_data
     end
 
-    def read_http(node_want)
-      uri = URI.parse(@cfg.url)
+    def read_http(uri, node_want)
       http = Net::HTTP.new(uri.host, uri.port)
       http.use_ssl = true if uri.scheme == 'https'
       http.verify_mode = OpenSSL::SSL::VERIFY_NONE unless @cfg.secure
+
+      # Add read_timeout to handle case of big list of nodes (default value is 60 seconds)
+      http.read_timeout = Integer(@cfg.read_timeout) if @cfg.has_key? "read_timeout"
 
       # map headers
       headers = {}

@@ -19,7 +19,7 @@ module Oxidized
     # RegisteredHook is a container for a Hook instance
     RegisteredHook = Struct.new(:name, :hook)
 
-    Events = %i[
+    EVENTS = %i[
       node_success
       node_fail
       post_store
@@ -32,9 +32,9 @@ module Oxidized
     end
 
     def register(event, name, hook_type, cfg)
-      unless Events.include? event
+      unless EVENTS.include? event
         raise ArgumentError,
-              "unknown event #{event}, available: #{Events.join ','}"
+              "unknown event #{event}, available: #{EVENTS.join ','}"
       end
 
       Oxidized.mgr.add_hook(hook_type) || raise("cannot load hook '#{hook_type}', not found")
@@ -55,12 +55,10 @@ module Oxidized
       ctx.event = event
 
       @registered_hooks[event].each do |r_hook|
-        begin
-          r_hook.hook.run_hook ctx
-        rescue StandardError => e
-          Oxidized.logger.error "Hook #{r_hook.name} (#{r_hook.hook}) failed " \
-                                "(#{e.inspect}) for event #{event.inspect}"
-        end
+        r_hook.hook.run_hook ctx
+      rescue StandardError => e
+        Oxidized.logger.error "Hook #{r_hook.name} (#{r_hook.hook}) failed " \
+                              "(#{e.inspect}) for event #{event.inspect}"
       end
     end
   end
@@ -68,8 +66,6 @@ module Oxidized
   # Hook abstract base class
   class Hook
     attr_reader :cfg
-
-    def initialize; end
 
     def cfg=(cfg)
       @cfg = cfg

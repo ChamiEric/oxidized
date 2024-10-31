@@ -1,5 +1,7 @@
 module Oxidized
   class Git < Output
+    using Refinements
+
     class GitError < OxidizedError; end
     begin
       require 'rugged'
@@ -10,6 +12,7 @@ module Oxidized
     attr_reader :commitref
 
     def initialize
+      super
       @cfg = Oxidized.config.output.git
     end
 
@@ -17,9 +20,9 @@ module Oxidized
       if @cfg.empty?
         Oxidized.asetus.user.output.git.user  = 'Oxidized'
         Oxidized.asetus.user.output.git.email = 'o@example.com'
-        Oxidized.asetus.user.output.git.repo = File.join(Config::Root, 'oxidized.git')
+        Oxidized.asetus.user.output.git.repo = File.join(Config::ROOT, 'oxidized.git')
         Oxidized.asetus.save :user
-        raise NoConfig, 'no output git config, edit ~/.config/oxidized/config'
+        raise NoConfig, "no output git config, edit #{Oxidized::Config.configfile}"
       end
 
       if @cfg.repo.respond_to?(:each)
@@ -33,8 +36,8 @@ module Oxidized
 
     def store(file, outputs, opt = {})
       @msg   = opt[:msg]
-      @user  = (opt[:user]  || @cfg.user)
-      @email = (opt[:email] || @cfg.email)
+      @user  = opt[:user]  || @cfg.user
+      @email = opt[:email] || @cfg.email
       @opt   = opt
       @commitref = nil
       repo = @cfg.repo
@@ -78,7 +81,8 @@ module Oxidized
       i = -1
       tab = []
       walker.each do |commit|
-        next if commit.diff(paths: [path]).size.zero?
+        # Diabled rubocop because the suggested .empty? does not work here.
+        next if commit.diff(paths: [path]).size.zero? # rubocop:disable Style/ZeroLengthPredicate
 
         hash = {}
         hash[:date] = commit.time.to_s
@@ -135,7 +139,7 @@ module Oxidized
     def yield_repo_and_path(node, group)
       repo, path = node.repo, node.name
 
-      path = "#{group}/#{node.name}" if group && @cfg.single_repo?
+      path = "#{group}/#{node.name}" if group && !group.empty? && @cfg.single_repo?
 
       [repo, path]
     end
@@ -158,11 +162,11 @@ module Oxidized
       begin
         repo = Rugged::Repository.new repo
         update_repo repo, file, data
-      rescue Rugged::OSError, Rugged::RepositoryError => open_error
+      rescue Rugged::OSError, Rugged::RepositoryError => e
         begin
           Rugged::Repository.init_at repo, :bare
         rescue StandardError => create_error
-          raise GitError, "first '#{open_error.message}' was raised while opening git repo, then '#{create_error.message}' was while trying to create git repo"
+          raise GitError, "first '#{e.message}' was raised while opening git repo, then '#{create_error.message}' was while trying to create git repo"
         end
         retry
       end

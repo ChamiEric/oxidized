@@ -1,4 +1,6 @@
 class Adtran < Oxidized::Model
+  using Refinements
+
   # Adtran
 
   prompt /([\w.@-]+[#>]\s?)$/
@@ -12,12 +14,18 @@ class Adtran < Oxidized::Model
     cfg
   end
 
-  cmd 'show running-config'
+  cmd 'show running-config' do |cfg|
+    # Strip out line at the top which displays the current date/time
+    # ! Created                         : Mon Jun 26 2023 10:07:07
+    cfg.gsub! /! Createds+:.*\n/, ''
+  end
 
   cfg :ssh do
-    post_login do
-      send "enable\n"
-      cmd vars(:enable)
+    if vars :enable
+      post_login do
+        send "enable\n"
+        cmd vars(:enable)
+      end
     end
     post_login 'terminal length 0'
     pre_logout 'exit'

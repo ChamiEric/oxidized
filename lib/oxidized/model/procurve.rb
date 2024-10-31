@@ -1,7 +1,9 @@
 class Procurve < Oxidized::Model
+  using Refinements
+
   # previous command is repeated followed by "\eE", which sometimes ends up on last line
   # ssh switches prompt may start with \r, followed by the prompt itself, regex ([\w\s.-]+[#>] ), which ends the line
-  # telnet switchs may start with various vt100 control characters, regex (\e\[24;[0-9][hH]), follwed by the prompt, followed
+  # telnet switches may start with various vt100 control characters, regex (\e\[24;[0-9][hH]), followed by the prompt, followed
   # by at least 3 other vt100 characters
   prompt /(^\r|\e\[24;[0-9][hH])?([\w\s.-]+[#>] )($|(\e\[24;[0-9][0-9]?[hH]){3})/
 
@@ -34,6 +36,8 @@ class Procurve < Oxidized::Model
     cfg.gsub! /\e\[\??\d+(;\d+)*[A-Za-z]/, ''
     # Additional filtering for power usage reporting which obviously changes over time
     cfg.gsub! /^(.*AC [0-9]{3}V\/?([0-9]{3}V)?) *([0-9]{1,3}) (.*)/, '\\1 <removed> \\4'
+    # Remove failed commands that are not supported on all models
+    cfg.gsub! /^Invalid input: [A-Za-z-]+\n/, ''
     cfg
   end
 

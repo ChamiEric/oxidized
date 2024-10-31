@@ -7,30 +7,270 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- removed time command from uplink EP4440-DP OLT model 
+- model for uplink EP4440-DP OLT (@AAm-kun)
+- model for Siklu Multihaul TG radios (@bdg-robert)
+- fortios: variable `fullconfig` to get the configuration with default values. Fixes: #3159 (@robertcheramy)
+- model for VMWare NSX DFW (@elmobp)
+- model for F5OS (@teunvink)
+- cumulus: Add possibility to use NVUE (@lagertonne)
+- model for garderos (@robertcheramy)
+- unit tests framework for models with ssh input (@robertcheramy)
+- container-image: install x25519 gem package to support more ssh kex. Fixes #3070 (@benasse)
+- os6: Added support to Dell EMC Networking OS6 (@anubisg1)
 
+### Changed
+- h3c: change prompt to expect either angle (user-view) or square (system-view) brackets (@nl987)
+- xos: Hide radius and user secrets for XOS (@iriseden)
+- eos: Hide radius and snmp secrets for Arista EOS (@iriseden)
+- docker/podman: baseimage updated to phusion/baseimage:jammy-1.0.4
+- fortios: Hide date in acme certifcate comments (@systeembeheerder)
+- dlink: added support for 'enable admin' before getting configuration, if enable=true (@as8net)
+- dlinknextgen: strip uptime and ntp update time from config
+- Updated slackdiff.rb to use slack_ruby_client instead of slack-api (@Punicaa)
+- oxidized: options (such as credentials, etc.) now use the same resolution logic as variables and can also be defined per model in a group (@EinGlasVollKakao)
+- Add JSONFILE source (@sargon)
+- saos: add inventory and software status collection (@grbeneke)
+- container-image: update to phusion/baseimage:noble-1.0.0 and include security upgrades at build time (@robertcheramy)
+- container-image: use ubuntu-packages instead of gems in order to reduce container image size (@robertcheramy)
+- edgecos.rb: hide temperature and fan speed (@dhooper6430)
+- cnos: show information before config, remove secrets only when told to do so (@robje)
+- Updated slackdiff.rb to use new files.getUploadURLExternal slack file upload API instead of deprecated files.upload (@varesa)
+
+### Fixed
+- fixed error for ibos when remove_secret is set (@dminuoso)
+- fixed prompt for Watchguard FirewareOS not matching the regex when the node is managed and master (@benasse)
+- fixed prompt for vyos/vyatta to allow logins with non-priviliged accounts. Fixes #3111 (@h-lopez)
+- fixed power consumption included in ArubaOS-CX diffs starting with FL.10.13.xxx. Fixes #3142 (@terratalpi)
+- fixed oxidized-web getting "version not found" when fetching a version from git and no group is defined. Fixes #2222 (@robertcheramy)
+- fixed telnet to disconnect gracefully even if it throws IOError while disconnect. Fixes #3212 (@ytti)
+- docs: run Git garbage collection to address performance issues. Fixes #3121 (@robertcheramy)
+- saos: fixed handling of 'unsaved configuration' indicator in prompt (@grbeneke)
+- rgos: also strip "System uptime" for installed modules (@spike77453)
+- fixed digest authentication when using http input (@spike77453)
+- fixed aosw prompt; now working with ArubaOS 8 (@mabezi, @robertcheramy)
+- routeros: fix system info for CHR. Fixes #3180 (@systeembeheerder)
+- removed hardcoded '~/.config/oxidized/config'. Fixes #3229 (@robertcheramy)
+- linuxgeneric: updated prompt to support '$' at the end (@robertcheramy)
+- hook githubrepo: add a specific warning when rugged not installed with ssh support. Fixes #3211 (@robertcheramy)
+- hook githubrepo: works with custom branch names (@robertcheramy)
+- ios: removes secrets when config has multiple snmp-server host lines. Fixes #3239 (@robertcheramy)
+
+## [0.30.1 – 2024-04-12]
+
+### Added
+- document the release process (@robertcheramy)
+
+### Fixed
+- The version string was not set correctly (@robertcheramy)
+
+## [0.30.0 – 2024-04-11]
+
+### Added
+- model for D-Link cisco like CLI (@mirackle-spb)
+- model for Ruijie Networks RGOS devices (@spike77453)
+- Add serial number collection to Opengear (@ermuller)
+- added support for AricentISS 2.x firmware (@davromaniak)
+- model for Asterfusion Network Operating System (@avl-dev)
+- pagination for http source (@davama)
+- model for Ericsson Miniling 6600 series (@schouwenburg)
+- model for Mimosa B11 (@ritzbhuj)
+- added SCP input (@aeiodelic)
+- Added `linux/arm64` and `linux/amd64` platforms to Docker build/publish. (@disaac)
+- Added verion info for Vyatta (@systeembeheerder)
+- model for Fibrestore (fs.com) FSOS (@tcrichton)
+- model for IP Infusion OcNOS
+- model for Fujitsu 1finity (@jerji)
+
+### Changed
+- tp-link: fixed enable mode post login entrance (@mirackle-spb)
+- dlink: fixed prompt for other dlink switches, added additional uptime removal expressions (@mirackle-spb)
+- Collect VC info for juniper ex3400 (@ermuller)
+- adva: fix config content for recovery process, collect config delta instead of current (@MichiMeyer)
+- iosxr: include last config changed by in model (@electrocret)
+- panos: exclude device dictionary
+- Added support for Nokia SAR 7705 HMC in SROS model (@schouwenburg)
+- fortios: only perform a "show" instead of a "show full-configuration" when retrieving configs from fortios. fixes timeouts and avoids extraneous defaulted config information. (@jforeman)
+- opengear: support newer Opengear CM* and OM* models (@matej_v)
+- edgecos: improve system temperature removal (@freddy36)
+- zynos: Rewrite the script to properly collect config via ssh/telnet. Backup with FTP is not working atm, feel free to open an issue if needed. (@sharteeya)
+- pfsense: exclude autogenerated firewall rule timestamps to reduce change churn from use of stuff like PFBlockerNG #2985 (@anthonysomerset)
+- ciscosmb: ignore "Please change the password" hint when doing backup. (@sharteeya)
+- c4cmts: uses chassis eeprom data for inventory information instead of environmental status (@nickhilliard)
+- dlinknextgen removes user and snmp-server secrets (@tcrichton)
+- dnos: hide secrets in "ospf message-digest-key", "authentication-type" and "bsd-username" (@rybnico)
+- junos: Replace dynamic value in VMX-BANDWIDTH with count, hide ssh keys
+
+### Fixed
+- fixed empty lines for ZyXEL GS1900 switches (@jluebbe)
+- fixed prompt for Watchguard FirewareOS not matching the regex when the node is non-master (@netdiver)
+- defined 'psych' runtime dependency to resolve 'unsafe_load' error during startup (@MattKobayashi)
+- fixed new date/time format with newer RouterOS `# jun/01/2023 12:11:25 by RouterOS 7.9.1` vs `# 2023-06-01 12:16:16 by RouterOS 7.10rc1` (@tim427)
+- fixed netscaler backups with hostname set #2828 (@electrocret)
+- Do not redirect stderr when fetching opnsense version since default shell (csh) doesn't support it (@spike77453)
+- Fix missing configuration for Opengear (@ermuller)
+- Fixed fan RPM speeds included in Aruba CX diffs (@danpoltawski)
+- Gitcrypt output refinements (@electrocret)
+- Remove constantly updating dates from backup of Adtran config (@davesbell)
+- fixed prompt for Cumulus to allow usernames with dots and dashes (@ktims)
+- fixed source http when source is librenms (@davama)
+- Fixed login and su regex unable to match in some comware devices (@sharteeya)
+- fixed prompt detection for Netgear M4250-10G2XF-PoE+ and M4300-28G-PoE+ (@rexhaugen)
+- fixed devices (pfsense, opnsense, openwrt) not retriving config after refinement change #2771 #2968 (@robertcheramy)
+- Fixed login into Fortigate when post-login-baned ist enabled. Fixes #2021 (@chrisr0880, @sahdan, @dangoscomb and @robertcheramy)
+- Fixed pre_logout for BDCOM switches
+- Fix 'wpa passphrase' hashed secret for SonicOS devices with built-in wireless #3036 (@lazynooblet)
+- Oxidized will now exit on SIGTERM and SIGINT; SIGHUP will trigger a node list reload and reopen logs (@gs-kamnas)
+- Fix potential busy wait when retries and/or next_adds_job is enabled (@gs-kamnas)
+- Reverting PR #2498 as it broke old procurve models (2510G, 2610, 2824). Fixes #2833, #2871 (@robertcheramy)
+- Fixed regexp used to remove secrets in nxos model. Fixes #3080 (@desnoe)
+
+## [0.29.1 - 2023-04-24]
+
+### Added
+
+### Changed
+
+- Ensure Docker builds are only pushed to registry on `master` (@aschaber1)
+
+### Fixed
+
+- #2749: fix issues with `cut_both`
+
+## [0.29.0 - 2023-04-13]
+
+- Ensure Docker Builds are tagged with latest and version (using `git describe --tags`) (@aschaber1)
+- Upgrade Dockerfile baseimage to Ubuntu 22.04 and Ruby 3.0 (@aschaber1)
+- Upgrade Ruby dependency to Ruby 3.0+ (@aschaber1)
+- model for PanOS & Panorama via HTTP API (@pv2b, @sts)
+- model for MikroTik SwOS devicse (@sm-nessus)
+- model for TrueNAS devices (@neilschelly)
+- model for Acme Packet devices (@ha36d)
+- model for SmartCS devise (@yoshihito-tatano)
+- Cumulus: added option to use NCLU as ia collecting method
+- Update net-ssh to 7.0.1 (using `append_all_supported_algorithms: true`)
+- Allow (config) (vlan-####) confirmation (y/n) and sftp questions in procurve prompt (@sorano)
+- Added new model called `srosmd` to backup configuration fron Nokia SR OS devices running in the model-driven CLI mode, which has different syntax to existing `sros` model.
+- fix: allow Netgear devices to finish SSH session correctly
+- More pager handling for MIS5030Q (@glance-)
+- Update logrotate example to allow logrotate service to start before any logs exist
+- Mask NX-OS tacacs+ host keys (@0x4c6565)
+- airfiber: prompt matching made case-insensitive to support AF5xHD (@noaheroufus)
+- Cumulus: add support for dhcp-relay (@ohai89)
+- Github Action: Support creating custom version tag in a release
+- Add support for no enable password set on ironware
+- change pfSense secret scrubbing to keep config as well-formed XML
+- Add support for comware HPE Office Connect 1950
+- Added model for Hirschmann Hios devices, next to alread present Hirschmann classic (@tijldeneut)
+- (StoneOS) Prompt fix for long device names, '^H' handling and removal of ever-changing data (@dMailonG)
+
+### Added
+
+- install rugged with ssh in Dockerfile (@agrevtcev)
+- allow to run as non-root user in Docker (@agrevtcev)
+- Extend http source configurations to include read_timeout value
+- model for bdcom-based fiberstore switches (@candlerb)
 - enterasys800 model for enterasys 800-series fe/ge switches (@javichumellamo)
 - add ES3526XA-V2 support in EdgeCOS model (@moisseev)
 - model for eltex mes-series switches (@glaubway)
 - model for zte c300 and c320 olt (@glaubway)
 - model for LANCOM (@systeembeheerder)
 - model for Aruba CX switches (@jmurphy5)
+- model for FortiWLC WLAn Controller (@MrMarioMichel)
+- model for NEC IX devices (@mikenowak)
+- Added docs for Dell/EMC Networking OS10 devices (@davromaniak)
+- model for Zyxel 1308 OLTs (@baldoarturo)
+- model for Linksys SRW switches (@glance-)
+- Added exec hook variables to retrieve verbose node's failure reason and type
+- model for Cambium ePMP radios (@martydingo)
+- Added GaiaOS support for virtual systems (@rwxd)
+- Added new `group_map` configuration option (@mjbnz)
+- Dockerfile rebased to phusion/baseimage-docker focal-1.2.0
+- model for Lenovo Network OS (@seros1521)
+- new option: use_max_threads
+- model for ADVA devices (@stephrdev)
+- model for YAMAHA NVR/RTX Series (@bluekirin55)
+- model for ZPE Nodegrid OS (@euph333)
+- model for H3C switches
+- model for Cisco Catalyst Express switches (@unemongod)
+- extended mysql source configuration to include tls options (@glaubway)
+- updated rugged in gemspec for ruby 3.0 support (@firefishy)
+- Added exec hook for MS Teams webhook (@systeembeheerder)
 
 ### Changed
 
+- Better manage of the enable mode in edgeswitch.rb (@agabellini)
+- Adds paging support to Enterasys B3/C3 (@piterpunk)
+- Allows "Username" as username prompt in Brocade ICX-series devices (@piterpunk)
+- Add show-sensitive flag on export command on Mikrotik RouterOS when remove_secret is off (@kedare)
 - rubocop dependency now ~> 0.81.0, the last one with ruby 2.3 support
 - change pfSense secret scrubbing to handle new format in 2.4.5+
 - Dockerfile rebased to phusion/baseimage-docker bionic-1.0.0
 - scrub PoE related messages from routeros config output (@pioto)
 - support for d-link dgs-1100 series switches in dlink model (@glaubway)
 - enterasys model now works with both ro and rw access (@sargon)
+- restore including last configuration change IOS if the change is done by real user. Resolves #1921 (@raunz)
+- Additional scrubbing for SonicOS v7 devices (@gerard780)
+- improved Telnet support for enterasys (@jplitza)
+- Include "show version" output for enterasys (@jplitza)
+- xmppdiff now also shows diffs with only removed or only added lines (@jplitza)
+- xmppdiff now persists its connection to the XMPP server and MUC (@jplitza)
+- routeros no longer backups infos on available updates (@jplitza)
+- avoid /humidity hardware field in tmos (F5) to be reported (@albsga)
+- read all configurations in partition folder for tmos (F5) (@dalamanster)
+- version information or OPNsense and PFsense models is now included as XML comments (@pv2b)
+- netscaler, backup all partitions (@smallsam)
+- only runs SSH proxy commands if the ssh_proxy configuration item has been defined (@jameskirsop)
+- updated vrp.rb to correctly parse huawei devices
+- asa: information about the configuration change time is deleted
+- Extended groups configuration to support models vars within a group (@mjbnz)
+- Extended `remote_repo` configuration to allow repo specific ssh keys (@mjbnz)
+- sonicos: added scrubbing for hashed values (@televat0rs)
+- nxos: Additional scrubbing for nxos device passwords (@derekivey)
+- nxos: Fix password match to avoid stripping out the user role. (@derekivey)
+- OpenBSD: Include bgpd, ospfd and ospf6d files (@woopstar)
+- scrub often changing values in junos license output (@matejv)
+- comware: support for enable(super) login password added (@delvta)
+- use slack-ruby-client instead of slack-api for slackdiff hook (@0xmc)
+- ios: Add support for RBAC in IOS model (@jameskirsop)
+- hide unsupported-transceiver license key in Arista EOS (@davidc)
+- edgecos: add support for FS S3900-48T6S-R (@cgsecurity)
+- eltex: added one command for disable pagination on Eltex MES2424 switches (@mirackle-spb)
 
 ### Fixed
 
+- fixed an issue for IOSXR devices which can't allocate pty because of problem with forwarding agent.
+- fixed an issue with the TrueNAS model where the configuration would come up blank when TrueNAS was also using it. (@neilschelly)
+- fixed on issue where Oxidized could not pull config from Opengear devices #1899 (@rikard0)
 - fixed an issue where Oxidized could not pull config from XOS-devices operating in stacked mode (@DarkCatapulter)
 - fixed an issue where Oxidized could not pull config from XOS-devices that have not saved their configuration (@DarkCatapulter)
 - improved scrubbing of show chassis in ironware model (@michaelpsomiadis)
 - fixed snmp secret handling in netgear model (@CirnoT)
+- generalise fortiOS to support new versions and VM based products e.g. FortiManager, FortiAnalyzer and FortiMail, which requires keyboard-interactive auth method. Includes trial-and-error cmd list to retrieve most infromative config. Fixes #2227. Moved 'system ha status' to 'config global' section to support clusters with virtual domains.
 - filter next periodic save schedule time in xos model output (@sargon)
+- Fix when auto-saved is configured on xos switches  (@trappiz)
+- fixed ArubaOS-CX enviroment/system inconsistent values #2297 (@raunz)
+- further improvements to ArubaOS-CX environment values (@olemyhre)
+- Update AirFiber prompt regex (@murrant)
+- System time and running time are now stripped from tplink model output (@spike77453)
+- &lt;?xml... line is no longer improperly stripped from OPNsense and PFsense backups (@pv2b)
+- fixed an issue where Oxidized timeouts in Brocade ICX-series devices (@piterpunk)
+- fixed an issue where EOS config was truncated. Fixes #2038 (@jake2184 @fhibler)
+- fixed missing output from routeros version command (@mjbnz)
+- stopped `clear: true` from removing all commands (@mjbnz)
+- Updated fastiron enable password prompt regex (@pepperoni-pi)
+- fixed an issue where the pfsense model would not report errors in case it was unable to download the configuration e.g. due to insufficient permissions
+- added a missing check for whether to send `enable` commands to Adtran devices (@repnop)
+- fixed an issue where ADVA devices with a configured prompt != `ADVA-->` couldn't be polled (@momorientes)
+- ensure local time and system up time are filtered for ADVA devices (@stephrdev)
+- fixed an issue with FortiOS that didn't accurately match `set ca` lines #2567 (@neilschelly)
+- removed unwanted current date from slxos model
+- fixed secret handling for rip authentication in casa model #2648 (@grahamjohnston)
+- stripped IoT-detect version for Fortigate devices
+- Fix expect usage in models on telnet. Tested with Netgear GS108T. (@arrjay)
+- Fix Sonicwall SonicOS "system-uptime" omission from log (@lazynooblet)
+- purityos: at least v6.3.5 needs other terminal settings (@elliot64)
+- purityos: remove purealerts and VEEAM snapshots from backed up config (@elliot64)
 
 ## [0.28.0 - 2020-05-18]
 
@@ -421,7 +661,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
-- debugging, tests (by @ElvinEfendi)
+- debugging, tests (by @ElvinEfendi)
 - nos, panos, acos, procurve, eos, edgeswitch, aosw, fortios updates
 
 ## [0.14.3] - 2016-05-25

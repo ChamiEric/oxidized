@@ -1,20 +1,88 @@
-# Single-stage build of an oxidized container from phusion/baseimage-docker bionic-1.0.0, derived from Ubuntu 18.04 (Bionic Beaver)
-FROM phusion/baseimage:bionic-1.0.0
+# Stage 1: Build x25519 and any necessary dependencies
+FROM docker.io/phusion/baseimage:noble-1.0.0 AS x25519-builder
+
+# install necessary packages for building gems
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    git \
+    ruby-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# create bundle directory
+RUN mkdir -p /usr/local/bundle
+ENV GEM_HOME=/usr/local/bundle
+
+# Install the x25519 gem
+RUN gem install x25519 --no-document
+
+# Stage2: build an oxidized container from phusion/baseimage-docker and install x25519 from stage1
+FROM docker.io/phusion/baseimage:noble-1.0.0
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+##### Place "static" commands at the beginning to optimize image size and build speed
+# add non-privileged user
+ARG UID=30000
+ARG GID=$UID
+RUN groupadd -g "${GID}" -r oxidized && useradd -u "${UID}" -r -m -d /home/oxidized -g oxidized oxidized
+
+# link config for msmtp for easier use.
+RUN ln -s /home/oxidized/.config/oxidized/.msmtprc /home/oxidized/
+
+# create parent directory & touch required file
+RUN mkdir -p /home/oxidized/.config/oxidized/
+RUN touch /home/oxidized/.config/oxidized/.msmtprc
+
+# setup the access to the file
+RUN chmod 600 /home/oxidized/.msmtprc
+RUN chown oxidized:oxidized /home/oxidized/.msmtprc
+
+# add runit services
+COPY extra/oxidized.runit /etc/service/oxidized/run
+COPY extra/auto-reload-config.runit /etc/service/auto-reload-config/run
+COPY extra/update-ca-certificates.runit /etc/service/update-ca-certificates/run
 
 # set up dependencies for the build process
 RUN apt-get -yq update \
-    && apt-get -yq --no-install-recommends install ruby2.5 ruby2.5-dev libssl1.1 libssl-dev pkg-config make cmake libssh2-1 libssh2-1-dev git git-email libmailtools-perl g++ libffi-dev ruby-bundler libicu60 libicu-dev libsqlite3-0 libsqlite3-dev libmysqlclient20 libmysqlclient-dev libpq5 libpq-dev zlib1g-dev \
+    && apt-get -yq upgrade \
+    && apt-get -yq --no-install-recommends install ruby \
+    # Build process of oxidized from git (beloww)
+    git \
+    # Allow git send-email from docker image
+    git-email libmailtools-perl \
+    # Allow sending emails in the docker container
+    msmtp \
+    # Debuging tools inside the container
+    inetutils-telnet \
+    # Use ubuntu gems where possible
+    # Gems needed by oxidized
+    ruby-rugged ruby-slop ruby-psych \
+    ruby-net-telnet ruby-net-ssh ruby-net-ftp ruby-net-scp ruby-ed25519 \
+    # Gem dependencies for inputs
+    ruby-net-http-persistent ruby-mechanize \
+    # Gem dependencies for sources
+    ruby-sqlite3 ruby-mysql2 ruby-pg ruby-sequel ruby-gpgme\
+    # Gem dependencies for hooks
+    ruby-aws-sdk ruby-xmpp4r \
+    # Gems needed by oxidized-web
+    ruby-charlock-holmes ruby-haml ruby-htmlentities ruby-json \
+    puma ruby-sinatra ruby-sinatra-contrib \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# dependencies for hooks
-RUN gem install aws-sdk slack-api xmpp4r cisco_spark --no-ri --no-rdoc
+# copy the compiled gem from the builder stage
+COPY --from=x25519-builder /usr/local/bundle /usr/local/bundle
 
-# dependencies for sources
-RUN gem install gpgme sequel sqlite3 mysql2 pg --no-ri --no-rdoc
+# Set environment variables for bundler
+ENV GEM_HOME="/usr/local/bundle"
+ENV PATH="$GEM_HOME/bin:$PATH"
 
-# dependencies for inputs
-RUN gem install net-tftp net-http-persistent mechanize --no-ri --no-rdoc
+# gems not available in ubuntu noble
+RUN gem install --no-document \
+    # dependencies for hooks
+    slack-ruby-client cisco_spark \
+    # dependencies for specific inputs
+    net-tftp
 
 # build and install oxidized
 COPY . /tmp/oxidized/
@@ -22,20 +90,15 @@ WORKDIR /tmp/oxidized
 
 # docker automated build gets shallow copy, but non-shallow copy cannot be unshallowed
 RUN git fetch --unshallow || true
-RUN rake install
+
+# Ensure rugged is built with ssh support
+RUN CMAKE_FLAGS='-DUSE_SSH=ON' rake install
 
 # web interface
-RUN gem install oxidized-web --no-ri --no-rdoc
+RUN gem install oxidized-web --no-document
 
 # clean up
 WORKDIR /
 RUN rm -rf /tmp/oxidized
-RUN apt-get -yq --purge autoremove ruby-dev pkg-config make cmake ruby-bundler libssl-dev libssh2-1-dev libicu-dev libsqlite3-dev libmysqlclient-dev libpq-dev zlib1g-dev
 
-# add runit services
-COPY extra/oxidized.runit /etc/service/oxidized/run
-COPY extra/auto-reload-config.runit /etc/service/auto-reload-config/run
-COPY extra/update-ca-certificates.runit /etc/service/update-ca-certificates/run
-
-VOLUME ["/root/.config/oxidized"]
 EXPOSE 8888/tcp

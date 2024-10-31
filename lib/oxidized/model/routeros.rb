@@ -1,4 +1,6 @@
 class RouterOS < Oxidized::Model
+  using Refinements
+
   prompt /\[\w+@\S+(\s+\S+)*\]\s?>\s?$/
   comment "# "
 
@@ -12,12 +14,15 @@ class RouterOS < Oxidized::Model
     cfg
   end
 
-  cmd '/system routerboard print without-paging' do |cfg|
+  cmd '/system resource print' do |cfg|
+    cfg = cfg.each_line.grep(/(version|factory-software|total-memory|cpu|cpu-count|total-hdd-space|architecture-name|board-name|platform):/).join
     comment cfg
   end
 
-  cmd '/system package update print without-paging' do |cfg|
-    comment cfg
+  cmd '/system package update print' do |cfg|
+    version_line = cfg.each_line.grep(/installed-version:\s|current-version:\s/)[0]
+    @ros_version = /([0-9])/.match(version_line)[0].to_i
+    comment version_line
   end
 
   cmd '/system history print without-paging' do |cfg|
@@ -25,13 +30,24 @@ class RouterOS < Oxidized::Model
   end
 
   post do
-    run_cmd = vars(:remove_secret) ? '/export hide-sensitive' : '/export'
+    Oxidized.logger.debug "lib/oxidized/model/routeros.rb: running /export for routeros version #{@ros_version}"
+    run_cmd = if vars(:remove_secret)
+                '/export hide-sensitive'
+              elsif (not @ros_version.nil?) && (@ros_version >= 7)
+                '/export show-sensitive'
+              else
+                '/export'
+              end
     cmd run_cmd do |cfg|
       cfg.gsub! /\\\r?\n\s+/, '' # strip new line
-      cfg.gsub! /# inactive time\r\n/, '' # Remove time based system comment
+      cfg.gsub! "# inactive time\r\n", '' # Remove time based system comment
       cfg.gsub! /# received packet from \S+ bad format\r\n/, '' # Remove intermittent VRRP/CARP collision comment
-      cfg.gsub! /# poe-out status: short_circuit\r\n/, '' # Remove intermittent POE short_circuit comment
-      cfg = cfg.split("\n").reject { |line| line[/^#\s\w{3}\/\d{2}\/\d{4}.*$/] }
+      cfg.gsub! "# poe-out status: short_circuit\r\n", '' # Remove intermittent POE short_circuit comment
+      cfg.gsub! "# Firmware upgraded successfully, please reboot for changes to take effect!\r\n", '' # Remove transient firmware upgrade comment
+      cfg.gsub! /# \S+ not ready\r\n/, '' # Remove intermittent $interface not ready comment
+      cfg = cfg.split("\n")
+      cfg.reject! { |line| line[/^#\s\w{3}\/\d{2}\/\d{4}.*$/] } # Remove date time and 'by RouterOS' comment (v6)
+      cfg.reject! { |line| line[/^#\s\d{4}-\d{2}-\d{2}.*$/] }   # Remove date time and 'by RouterOS' comment (v7)
       cfg.join("\n") + "\n"
     end
   end
